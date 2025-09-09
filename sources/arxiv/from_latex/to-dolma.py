@@ -24,7 +24,7 @@ SOURCE_NAME = "arxiv"
 parser = argparse.ArgumentParser(description="Convert Arxiv dumps to the dolma format.")
 parser.add_argument(
     "--metadata",
-    default="data/arxiv-metadata-oai-snapshot.json",
+    default="data/arxiv-metadata-oai-snapshot-reduced.json",
     help="Path to the arxiv metadata file.",
 )
 parser.add_argument(
@@ -203,15 +203,15 @@ def format_dolma(article, text: str, source: str = SOURCE_NAME):
     return {
         "id": article["id"],
         "text": text,
-        "source": "arxiv",
-        "added": datetime.datetime.utcnow().isoformat(),
-        "created": article["update_date"],
-        "metadata": {
-            "license": article["license"],
-            "url": f"http://arxiv.org/abs/{article['id']}",
-            "authors": article["authors"],
-            "title": article["title"],
-        },
+        # "source": "arxiv",
+        # "added": datetime.datetime.utcnow().isoformat(),
+        # "created": article["update_date"],
+        # "metadata": {
+        #     "license": article["license"],
+        #     "url": f"http://arxiv.org/abs/{article['id']}",
+        #     "authors": article["authors"],
+        #     "title": article["title"],
+        # },
     }
 
 
