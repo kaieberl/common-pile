@@ -12,6 +12,7 @@ from queue import Queue
 from typing import Dict, Iterator
 
 import contextual_logger
+from huggingface_hub import HfApi
 import smart_open
 import tqdm
 from dolma.core.parallel import BaseParallelProcessor
@@ -40,17 +41,22 @@ def to_dolma(
     shard_size: int = 1,
     quiet: bool = False,
     shard_idx: int = 0,
+    repo_id: str = None,
+    repo_path: str = "",
 ):
     """Write `examples` to `path` in the dolma format with `shard_size`GB shards."""
     logger = get_logger()
     logger.info("Writing Dolma Shards to %s", path)
     os.makedirs(path, exist_ok=True)
+    if repo_id is not None:
+        api = HfApi()
     size = 0
     # Gigabytes, not Gibibytes
     max_bytes = shard_size * 1000 * 1000 * 1000
     with ExitStack() as stack:
+        shard_file = os.path.join(path, shard_name(filename, shard_idx))
         wf = stack.enter_context(
-            smart_open.open(os.path.join(path, shard_name(filename, shard_idx)), "w")
+            smart_open.open(shard_file, "w")
         )
         for example in tqdm.tqdm(examples, disable=quiet):
             data = json.dumps(example, default=serialize_datetime)
@@ -58,12 +64,31 @@ def to_dolma(
             size += len(data)
             if size >= max_bytes:
                 wf.close()
+                if repo_id is not None:
+                    api.upload_file(
+                        path_or_fileobj=shard_file,
+                        path_in_repo=os.path.join(repo_path, os.path.basename(shard_file)),
+                        repo_id=repo_id,
+                        repo_type="dataset",
+                    )
+                    logger.info("Uploaded shard %s to Hugging Face repo %s", shard_file, repo_id)
+                    os.remove(shard_file)
                 shard_idx += 1
                 shard_file = os.path.join(path, shard_name(filename, shard_idx))
                 wf = stack.enter_context(smart_open.open(shard_file, "w"))
                 logger.info("Shard size exceeded, creating new shard at %s", shard_file)
                 size = 0
             wf.write(data + "\n")
+        wf.close()
+        if repo_id is not None:
+            api.upload_file(
+                path_or_fileobj=shard_file,
+                path_in_repo=os.path.join(repo_path, os.path.basename(shard_file)),
+                repo_id=repo_id,
+                repo_type="dataset",
+            )
+            logger.info("Uploaded shard %s to Hugging Face repo %s", shard_file, repo_id)
+            os.remove(shard_file)
 
 
 def smart_open_exists(path):

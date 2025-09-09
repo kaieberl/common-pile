@@ -49,6 +49,16 @@ parser.add_argument(
 parser.add_argument(
     "--dry_run", action="store_true", help="Should we not actually download any files."
 )
+parser.add_argument(
+    "--repo_id",
+    default="kai271/arxiv-papers",
+    help="Huggingface Repository ID for uploading the output shards.",
+)
+parser.add_argument(
+    "--repo_path",
+    default="",
+    help="Path within Huggingface repository to upload to.",
+)
 
 
 LICENSES = {
