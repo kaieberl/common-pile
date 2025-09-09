@@ -50,12 +50,12 @@ DEFAULT_HANDLERS = (
 
 def configure_logging(
     name: str = "common-pile",
-    level: str = "INFO",
+    level: str = "DEBUG",
     get_formatter_fn: GetFormatter = get_json_formatter,
     handler_fns: Sequence[GetHandler] = DEFAULT_HANDLERS,
 ) -> logging.Logger:
     logger = logging.getLogger(name)
-    level = getattr(logging, level.upper(), logging.INFO)
+    level = getattr(logging, level.upper(), logging.DEBUG)
     logger.setLevel(level)
 
     formatter = get_formatter_fn()
