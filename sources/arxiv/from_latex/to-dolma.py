@@ -220,22 +220,26 @@ def process_article(
         id_to_directory(article["id"]),
         f"{id_to_filename(article['id'])}.gz",
     )
-    # We can emit multiple documents if there are multiple top-level .tex files.
-    # If this collection of all documents produced by a single article id has
-    # only one document, don't include the filename in the dolma id.
-    contents_and_filename = list(load_article_src(article_path, article["id"]))
-    logger.debug(
-        f"Article {article['id']} generated {len(contents_and_filename)} documents."
-    )
-    if not contents_and_filename:
-        return []
-    if len(contents_and_filename) > 1:
-        for contents, filename in contents_and_filename:
-            updated_article = copy.deepcopy(article)
-            updated_article["id"] = f"{updated_article['id']}-{filename}"
-            yield updated_article, contents
-    else:
-        yield article, contents_and_filename[0][0]
+    try:
+        # We can emit multiple documents if there are multiple top-level .tex files.
+        # If this collection of all documents produced by a single article id has
+        # only one document, don't include the filename in the dolma id.
+        contents_and_filename = list(load_article_src(article_path, article["id"]))
+        logger.debug(
+            f"Article {article['id']} generated {len(contents_and_filename)} documents."
+        )
+        if not contents_and_filename:
+            return []
+        if len(contents_and_filename) > 1:
+            for contents, filename in contents_and_filename:
+                updated_article = copy.deepcopy(article)
+                updated_article["id"] = f"{updated_article['id']}-{filename}"
+                yield updated_article, contents
+        else:
+            yield article, contents_and_filename[0][0]
+    finally:
+        if os.path.exists(article_path):
+            os.remove(article_path)
 
 
 def main(args):
