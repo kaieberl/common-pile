@@ -197,7 +197,7 @@ def format_dolma(article, text: str, source: str = SOURCE_NAME):
         "added": datetime.datetime.utcnow().isoformat(),
         "created": article["update_date"],
         "metadata": {
-            "license": str(LICENSES.get(article["license"], article["license"])),
+            "license": article["license"],
             "url": f"http://arxiv.org/abs/{article['id']}",
             "authors": article["authors"],
             "title": article["title"],
@@ -253,7 +253,7 @@ def main(args):
     )
 
     # Use iterators so we don't load the whole dataset into memory.
-    cc_articles = (a for a in metadata if a["license"] in LICENSES)
+    cc_articles = (a for a in metadata)
     process = functools.partial(
         process_article, dump_dir=args.dump_dir, bulk_downloader=bulk_downloader
     )
