@@ -27,7 +27,6 @@ if [ -n "$1" ]; then
 fi
 
 # --- Configuration ---
-ID_FILE="arxiv-shards.txt"
 HF_REPO="kai271/arxiv-papers"
 WORK_DIR="data"
 
