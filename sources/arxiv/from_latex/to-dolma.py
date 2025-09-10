@@ -274,7 +274,7 @@ def main(args):
             )
             meta_and_content = itertools.chain(*map(process, cc_articles))
             dolma = map(lambda x: format_dolma(*x), meta_and_content)
-            to_dolma(dolma, args.output_dir, args.filename, args.shard_size)
+            to_dolma(dolma, args.output_dir, args.filename, args.shard_size, args.repo_id, args.repo_path)
 
 
 if __name__ == "__main__":
