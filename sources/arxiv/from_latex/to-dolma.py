@@ -254,26 +254,27 @@ def process_article(
 
 def main(args):
     with open(args.metadata) as f:
-        metadata = [json.loads(l) for l in f]
+        # metadata = [json.loads(l) for l in f]
+        for l in f:
+            metadata = [json.loads(l)]
+            bulk_downloader = BulkDownloader(
+                args.manifest,
+                # Having to grab the dir for this is ugly, but it is a quirk of the
+                # shards having their own `src/` dir in their names. Not worth cleaning
+                # up.
+                output_dir=os.path.dirname(args.dump_dir),
+                overwrite=False,
+                dry_run=args.dry_run,
+            )
 
-    bulk_downloader = BulkDownloader(
-        args.manifest,
-        # Having to grab the dir for this is ugly, but it is a quirk of the
-        # shards having their own `src/` dir in their names. Not worth cleaning
-        # up.
-        output_dir=os.path.dirname(args.dump_dir),
-        overwrite=False,
-        dry_run=args.dry_run,
-    )
-
-    # Use iterators so we don't load the whole dataset into memory.
-    cc_articles = (a for a in metadata)
-    process = functools.partial(
-        process_article, dump_dir=args.dump_dir, bulk_downloader=bulk_downloader
-    )
-    meta_and_content = itertools.chain(*map(process, cc_articles))
-    dolma = map(lambda x: format_dolma(*x), meta_and_content)
-    to_dolma(dolma, args.output_dir, args.filename, args.shard_size)
+            # Use iterators so we don't load the whole dataset into memory.
+            cc_articles = (a for a in metadata)
+            process = functools.partial(
+                process_article, dump_dir=args.dump_dir, bulk_downloader=bulk_downloader
+            )
+            meta_and_content = itertools.chain(*map(process, cc_articles))
+            dolma = map(lambda x: format_dolma(*x), meta_and_content)
+            to_dolma(dolma, args.output_dir, args.filename, args.shard_size)
 
 
 if __name__ == "__main__":
