@@ -39,20 +39,15 @@ process_shard() {
 
     # 3. Unpack all .gz files within the shard directory
     echo "[PID: $$] 3. ($ID) Unpacking .gz files..."
-    # The find command can sometimes fail if no .gz files are found.
-    # We add '|| true' to prevent the script from exiting if that's the case.
-    find "$SHARD_DIR" -type f -name "*.gz" -print0 | while IFS= read -r -d $'\0' gz_file; do
+    while IFS= read -r -d $'\0' gz_file; do
         if tar -tzf "$gz_file" >/dev/null 2>&1; then
             echo "[PID: $$]    Unpacking $gz_file"
-            # Extract in the same directory as the archive.
-            # The 'z' flag handles gzip decompression. 'xvf' extracts verbose file list.
-            # We also remove the archive after extraction to mimic gunzip's behavior.
-            mkdir "${gz_file%.gz}"
+            mkdir -p "${gz_file%.gz}"
             tar -xzf "$gz_file" -C "${gz_file%.gz}" && rm "$gz_file"
         else
             gunzip -c "$gz_file" > "${gz_file%.gz}.tex"
         fi
-    done
+    done < <(find "$SHARD_DIR" -type f -name "*.gz" -print0)
 
     # 4. Delete all files except for .tex files
     echo "[PID: $$] 4. ($ID) Deleting non-.tex files..."
