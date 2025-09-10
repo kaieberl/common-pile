@@ -10,5 +10,5 @@ filenames = [file.find("filename").text for file in root.findall("file")]
 
 with open("arxiv-shards.txt", "w") as wf:
     for n in filenames:
-        if "1501" <= n.split("_")[-2] <= "3000":
-            wf.write(n[4:-4] + "\n")
+        if "1501" <= n.split("_")[-2] <= "9000":
+            wf.write(n[4:-4] + "\n")    # remove src/ prefix and .tar suffix
