@@ -3,6 +3,29 @@
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
+# --- Argument Parsing ---
+usage() {
+    echo "Usage: $0 [ID_FILE_PATH]"
+    echo
+    echo "Processes arXiv source files based on a list of shard IDs."
+    echo "If ID_FILE_PATH is not provided, it defaults to 'arxiv-shards.txt'."
+    echo
+    echo "  -h, --help     Show this help message and exit."
+}
+
+# Default value for the ID file
+ID_FILE="arxiv-shards.txt"
+
+# Handle command-line arguments
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    usage
+    exit 0
+fi
+
+if [ -n "$1" ]; then
+    ID_FILE="$1"
+fi
+
 # --- Configuration ---
 ID_FILE="arxiv-shards.txt"
 HF_REPO="kai271/arxiv-papers"
