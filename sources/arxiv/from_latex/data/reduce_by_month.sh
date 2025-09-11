@@ -112,22 +112,32 @@ while IFS= read -r ID || [[ -n "$current_month" ]]; do
     # 3. Unpack all .gz files and keep only .tex files
     echo "3. Extracting .tex files from .gz archives..."
     find "$shard_temp_dir" -type f -name "*.gz" -print0 | while IFS= read -r -d $'\0' gz_file; do
-        # Create a unique name for the output file based on the gz_file name
+        # Create a unique name based on the gz_file name
         output_basename=$(basename "${gz_file%.gz}")
-        output_tex_file="${month_dir}/${output_basename}.tex"
 
         # Unpack and filter for .tex content, or just decompress if it's not a tar archive
         if tar -tzf "$gz_file" &>/dev/null; then
-            # It's a .tar.gz, extract only .tex files
-            tar -xzf "$gz_file" -O --wildcards '*.tex' > "$output_tex_file" 2>/dev/null || true
-        else
-            # It's a simple .gz, decompress it
-            gunzip -c "$gz_file" > "$output_tex_file"
-        fi
+            # It's a .tar.gz. Create a directory for its contents.
+            output_dir="${month_dir}/${output_basename}"
+            mkdir -p "$output_dir"
 
-        # If the created file is empty (e.g., no .tex files in archive), remove it
-        if [ ! -s "$output_tex_file" ]; then
-            rm -f "$output_tex_file"
+            # Extract the archive into the new directory
+            tar -xzf "$gz_file" -C "$output_dir"
+
+            # Delete all files that are not .tex files
+            find "$output_dir" -type f -not -name "*.tex" -delete
+
+            # Clean up any empty directories left after deleting other files
+            find "$output_dir" -depth -type d -empty -delete
+        else
+            # It's a simple .gz, decompress it to a .tex file
+            output_tex_file="${month_dir}/${output_basename}.tex"
+            gunzip -c "$gz_file" > "$output_tex_file"
+
+            # If the created file is empty, remove it
+            if [ ! -s "$output_tex_file" ]; then
+                rm -f "$output_tex_file"
+            fi
         fi
     done
 
