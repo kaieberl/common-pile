@@ -24,7 +24,7 @@ SOURCE_NAME = "arxiv"
 parser = argparse.ArgumentParser(description="Convert Arxiv dumps to the dolma format.")
 parser.add_argument(
     "--metadata",
-    default="data/arxiv-metadata-oai-snapshot-reduced.json",
+    default="data/arxiv-metadata-oai-snapshot.json",
     help="Path to the arxiv metadata file.",
 )
 parser.add_argument(
@@ -48,16 +48,6 @@ parser.add_argument(
 )
 parser.add_argument(
     "--dry_run", action="store_true", help="Should we not actually download any files."
-)
-parser.add_argument(
-    "--repo_id",
-    default="kai271/arxiv-papers",
-    help="Huggingface Repository ID for uploading the output shards.",
-)
-parser.add_argument(
-    "--repo_path",
-    default="",
-    help="Path within Huggingface repository to upload to.",
 )
 
 
@@ -203,15 +193,15 @@ def format_dolma(article, text: str, source: str = SOURCE_NAME):
     return {
         "id": article["id"],
         "text": text,
-        # "source": "arxiv",
-        # "added": datetime.datetime.utcnow().isoformat(),
-        # "created": article["update_date"],
-        # "metadata": {
-        #     "license": article["license"],
-        #     "url": f"http://arxiv.org/abs/{article['id']}",
-        #     "authors": article["authors"],
-        #     "title": article["title"],
-        # },
+        "source": "arxiv",
+        "added": datetime.datetime.utcnow().isoformat(),
+        "created": article["update_date"],
+        "metadata": {
+            "license": article["license"],
+            "url": f"http://arxiv.org/abs/{article['id']}",
+            "authors": article["authors"],
+            "title": article["title"],
+        },
     }
 
 
@@ -230,51 +220,46 @@ def process_article(
         id_to_directory(article["id"]),
         f"{id_to_filename(article['id'])}.gz",
     )
-    try:
-        # We can emit multiple documents if there are multiple top-level .tex files.
-        # If this collection of all documents produced by a single article id has
-        # only one document, don't include the filename in the dolma id.
-        contents_and_filename = list(load_article_src(article_path, article["id"]))
-        logger.debug(
-            f"Article {article['id']} generated {len(contents_and_filename)} documents."
-        )
-        if not contents_and_filename:
-            return []
-        if len(contents_and_filename) > 1:
-            for contents, filename in contents_and_filename:
-                updated_article = copy.deepcopy(article)
-                updated_article["id"] = f"{updated_article['id']}-{filename}"
-                yield updated_article, contents
-        else:
-            yield article, contents_and_filename[0][0]
-    finally:
-        if os.path.exists(article_path):
-            os.remove(article_path)
+    # We can emit multiple documents if there are multiple top-level .tex files.
+    # If this collection of all documents produced by a single article id has
+    # only one document, don't include the filename in the dolma id.
+    contents_and_filename = list(load_article_src(article_path, article["id"]))
+    logger.debug(
+        f"Article {article['id']} generated {len(contents_and_filename)} documents."
+    )
+    if not contents_and_filename:
+        return []
+    if len(contents_and_filename) > 1:
+        for contents, filename in contents_and_filename:
+            updated_article = copy.deepcopy(article)
+            updated_article["id"] = f"{updated_article['id']}-{filename}"
+            yield updated_article, contents
+    else:
+        yield article, contents_and_filename[0][0]
 
 
 def main(args):
     with open(args.metadata) as f:
-        # metadata = [json.loads(l) for l in f]
-        for l in f:
-            metadata = [json.loads(l)]
-            bulk_downloader = BulkDownloader(
-                args.manifest,
-                # Having to grab the dir for this is ugly, but it is a quirk of the
-                # shards having their own `src/` dir in their names. Not worth cleaning
-                # up.
-                output_dir=os.path.dirname(args.dump_dir),
-                overwrite=False,
-                dry_run=args.dry_run,
-            )
+        metadata = [json.loads(l) for l in f]
 
-            # Use iterators so we don't load the whole dataset into memory.
-            cc_articles = (a for a in metadata)
-            process = functools.partial(
-                process_article, dump_dir=args.dump_dir, bulk_downloader=bulk_downloader
-            )
-            meta_and_content = itertools.chain(*map(process, cc_articles))
-            dolma = map(lambda x: format_dolma(*x), meta_and_content)
-            to_dolma(dolma, args.output_dir, args.filename, args.shard_size, args.repo_id, args.repo_path)
+    bulk_downloader = BulkDownloader(
+        args.manifest,
+        # Having to grab the dir for this is ugly, but it is a quirk of the
+        # shards having their own `src/` dir in their names. Not worth cleaning
+        # up.
+        output_dir=os.path.dirname(args.dump_dir),
+        overwrite=False,
+        dry_run=args.dry_run,
+    )
+
+    # Use iterators so we don't load the whole dataset into memory.
+    cc_articles = (a for a in metadata)
+    process = functools.partial(
+        process_article, dump_dir=args.dump_dir, bulk_downloader=bulk_downloader
+    )
+    meta_and_content = itertools.chain(*map(process, cc_articles))
+    dolma = map(lambda x: format_dolma(*x), meta_and_content)
+    to_dolma(dolma, args.output_dir, args.filename, args.shard_size)
 
 
 if __name__ == "__main__":
