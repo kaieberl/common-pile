@@ -2,8 +2,6 @@
 
 # Exit immediately if a command exits with a non-zero status.
 set -e
-# Exit on pipe failures
-set -o pipefail
 
 # --- Argument Parsing ---
 usage() {
@@ -35,6 +33,7 @@ WORK_DIR="data"
 # --- Pre-flight checks ---
 command -v aws >/dev/null 2>&1 || { echo >&2 "AWS CLI ('aws') not found. Please install and configure it. Aborting."; exit 1; }
 command -v huggingface-cli >/dev/null 2>&1 || { echo >&2 "Hugging Face CLI ('huggingface-cli') not found. Please install it ('pip install huggingface_hub'). Aborting."; exit 1; }
+command -v gtar >/dev/null 2>&1 || { echo >&2 "GNU tar ('gtar') not found. Please install it. Aborting."; exit 1; }
 
 # Create a top-level working directory
 mkdir -p "$WORK_DIR"
@@ -62,7 +61,12 @@ while IFS= read -r ID || [[ -n "$current_month" ]]; do
 
             # 2. Upload the consolidated archive to Hugging Face
             echo "2. Uploading $output_file to Hugging Face repository: $HF_REPO"
-            huggingface-cli upload "$HF_REPO" "$output_file" "shards/$output_file" --repo-type dataset
+            if ! hf upload "$HF_REPO" "$output_file" "shards/$output_file" --repo-type dataset; then
+                echo "Error: Failed to upload $output_file to Hugging Face. Aborting." >&2
+                # Clean up the generated tar.gz file before exiting
+                rm -f "$output_file"
+                exit 1
+            fi
 
             # 3. Clean up the month's archive
             rm -f "$output_file"
@@ -92,39 +96,35 @@ while IFS= read -r ID || [[ -n "$current_month" ]]; do
     # --- Shard Processing ---
     echo "--- Processing Shard ID: $ID ---"
 
-    # Define file and directory names for the current shard
-    tar_file="${ID}.tar"
-    s3_path="s3://arxiv/src/$tar_file"
+    # Define file path for the current shard
+    tar_file_path="${WORK_DIR}/${ID}.tar"
 
-    echo "1. Streaming and processing from $s3_path..."
+    # 1. Download shard from S3
+    echo "1. Downloading s3://arxiv/src/${ID}.tar..."
+    aws s3 cp "s3://arxiv/src/${ID}.tar" "$WORK_DIR/" --request-payer requester
 
-    # Stream the tar file from S3, then pipe it to a loop that processes each .gz file inside.
-    aws s3 cp "$s3_path" - --request-payer requester | \
-    while IFS= read -r gz_path; do
+    # 2. Extract .tex files directly from the shard without unpacking it fully.
+    echo "2. Extracting .tex files from ${ID}.tar..."
+    tar -tf "$tar_file_path" | grep '\.gz$' | while read -r file; do
+      if tar -xO -f "$tar_file_path" "$file" | tar -tzf - >/dev/null 2>&1; then
+        # The inner .gz is actually a tar.gz. Extract only .tex files from it.
+        output_dir="${month_dir}/$(basename "$file" .gz)"
+        mkdir -p "$output_dir"
+        tar -xO -f "$tar_file_path" "$file" | gtar -xzf - -C "$output_dir" --wildcards --no-anchored "*.tex"
 
-        # Extract the specific .gz file from the stream to stdout
-        inner_gz_stream=$(aws s3 cp "$s3_path" - --request-payer requester | tar -xO --no-recursion "$gz_path")
-
-        # Check if the inner .gz is a tar archive
-        if echo "$inner_gz_stream" | tar -tz >/dev/null 2>&1; then
-            # It's a .tar.gz. Extract only .tex files into a dedicated directory.
-            output_dir="${month_dir}/$(basename "${gz_path%.gz}")"
-            mkdir -p "$output_dir"
-            echo "$inner_gz_stream" | tar -xz -C "$output_dir" --wildcards --no-anchored "*.tex"
-
-            # Clean up empty directories if no .tex files were found
-            find "$output_dir" -depth -type d -empty -delete
-        else
-            # It's a simple .gz. Decompress it to a .tex file.
-            output_tex_file="${month_dir}/$(basename "${gz_path%.gz}").tex"
-            echo "$inner_gz_stream" | gunzip -c > "$output_tex_file"
-
-            # Remove empty .tex files
-            if [ ! -s "$output_tex_file" ]; then
-                rm -f "$output_tex_file"
-            fi
+        # Clean up empty directories if no .tex files were found
+        if [ -d "$output_dir" ] && [ -z "$(ls -A "$output_dir")" ]; then
+            rmdir "$output_dir"
         fi
-    done < <(aws s3 cp "$s3_path" - --request-payer requester | tar -t | grep '\.gz$')
+      else
+        # The inner .gz is just a regular gzip file. Decompress it.
+        output_tex_file="${month_dir}/$(basename "$file" .gz).tex"
+        tar -xO -f "$tar_file_path" "$file" | gunzip -c > "$output_tex_file"
+      fi
+    done
+
+    # 3. Clean up the downloaded shard tar file
+    rm "$tar_file_path"
 
     echo "--- Finished Shard ID: $ID ---"
     echo ""
