@@ -109,12 +109,7 @@ while IFS= read -r ID || [[ -n "$current_month" ]]; do
         # The inner .gz is actually a tar.gz. Extract only .tex files from it.
         output_dir="${month_dir}/$(basename "$file" .gz)"
         mkdir -p "$output_dir"
-
-        if ! tar -xO -f "$tar_file_path" "$file" | tar -xzf - -C "$output_dir" --wildcards --no-anchored '*.tex' --wildcards --no-anchored '*.TEX'; then
-            echo "Warning: No '.tex' or '.TEX' files found in '$file' from shard '$ID'. Listing its contents:"
-            tar -xO -f "$tar_file_path" "$file" | tar -tzf - | sed 's/^/  /' || echo "   (Could not list contents of a non-tar archive)"
-            echo "--------------------------------------------------------"
-        fi
+        tar -xO -f "$tar_file_path" "$file" | tar -xzf - -C "$output_dir" --wildcards --no-anchored "*.tex" "*.TEX" || tar -xO -f "$tar_file_path" "$file" | tar -tzf - | sed 's/^/  /'
 
         # Clean up empty directories if no .tex files were found
         if [ -d "$output_dir" ] && [ -z "$(ls -A "$output_dir")" ]; then
