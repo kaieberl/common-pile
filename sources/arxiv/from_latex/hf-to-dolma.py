@@ -5,7 +5,6 @@ import os
 import re
 import tarfile
 from typing import Set, Tuple, Iterator, Dict, List
-from pathlib import Path
 
 from charset_normalizer import from_bytes
 from huggingface_hub import hf_hub_download
@@ -182,4 +181,4 @@ if __name__ == '__main__':
 
     meta_and_content = itertools.chain(*map(process_articles_from_gzipped_directory, dirnames))
     dolma = map(lambda x: format_dolma(*x), meta_and_content)
-    to_dolma(dolma, "data/documents/", "arxiv.jsonl.gz", 1)
+    to_dolma(dolma, "data/arxiv/raw/documents/", "arxiv.jsonl.gz", 1)
