@@ -33,7 +33,6 @@ WORK_DIR="data"
 # --- Pre-flight checks ---
 command -v aws >/dev/null 2>&1 || { echo >&2 "AWS CLI ('aws') not found. Please install and configure it. Aborting."; exit 1; }
 command -v huggingface-cli >/dev/null 2>&1 || { echo >&2 "Hugging Face CLI ('huggingface-cli') not found. Please install it ('pip install huggingface_hub'). Aborting."; exit 1; }
-command -v gtar >/dev/null 2>&1 || { echo >&2 "GNU tar ('gtar') not found. Please install it. Aborting."; exit 1; }
 
 # Create a top-level working directory
 mkdir -p "$WORK_DIR"
@@ -110,7 +109,7 @@ while IFS= read -r ID || [[ -n "$current_month" ]]; do
         # The inner .gz is actually a tar.gz. Extract only .tex files from it.
         output_dir="${month_dir}/$(basename "$file" .gz)"
         mkdir -p "$output_dir"
-        tar -xO -f "$tar_file_path" "$file" | gtar -xzf - -C "$output_dir" --wildcards --no-anchored "*.tex"
+        tar -xO -f "$tar_file_path" "$file" | tar -xzf - -C "$output_dir" --wildcards --no-anchored "*.tex" || true
 
         # Clean up empty directories if no .tex files were found
         if [ -d "$output_dir" ] && [ -z "$(ls -A "$output_dir")" ]; then
