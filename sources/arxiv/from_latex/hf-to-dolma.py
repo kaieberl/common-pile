@@ -177,7 +177,7 @@ def process_articles_from_gzipped_directory(filepath: str) -> Iterator[Tuple[str
 if __name__ == '__main__':
     # TODO: restore shards file
     with open("data/arxiv-shards.txt", "r") as f:
-        dirnames = set("data/" + l.split("_")[2] + "_tex.tar.gz" for l in f)
+        dirnames = set(l.split("_")[2] + "_tex.tar.gz" for l in f)
 
     meta_and_content = itertools.chain(*map(process_articles_from_gzipped_directory, dirnames))
     dolma = map(lambda x: format_dolma(*x), meta_and_content)
