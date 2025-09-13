@@ -163,7 +163,7 @@ def process_articles_from_gzipped_directory(filepath: str, processed_ids: Set[st
     with tarfile.open(main_archive_path, "r:gz") as tar:
         articles = get_article_subdirectories(tar)
 
-        for article_id, members in articles.items():
+        for article_id, members in sorted(articles.items()):
             # Extract the raw article ID (e.g., '0704.0001') to check if it's processed
             raw_article_id = article_id.split('/')[-1]
             if raw_article_id in processed_ids:
@@ -195,7 +195,7 @@ def process_articles_from_gzipped_directory(filepath: str, processed_ids: Set[st
                         )
                         yield info.name.split("/")[1], content
                 elif (
-                        os.path.splitext(info.name)[1] == ".tex"
+                        os.path.splitext(info.name)[1].lower() == ".tex"
                         and relative_path == "."
                 ):
                     logger.debug(
