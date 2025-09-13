@@ -110,6 +110,7 @@ while IFS= read -r ID || [[ -n "$current_month" ]]; do
         output_dir="${month_dir}/$(basename "$file" .gz)"
         mkdir -p "$output_dir"
         tar -xO -f "$tar_file_path" "$file" | tar -xzf - -C "$output_dir" --wildcards --no-anchored --ignore-case "*.tex" || tar -xO -f "$tar_file_path" "$file" | tar -tzf - | sed 's/^/  /'
+        tar -xO -f "$tar_file_path" "$file" | tar -xzf - -C "$output_dir" --wildcards --no-anchored --ignore-case "*.bbl" || echo "$file"
 
         # Clean up empty directories if no .tex files were found
         if [ -d "$output_dir" ] && [ -z "$(ls -A "$output_dir")" ]; then
