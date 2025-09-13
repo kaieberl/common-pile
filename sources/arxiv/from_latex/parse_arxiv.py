@@ -1,8 +1,9 @@
 import pylatexenc.latex2text
 import os
 import re
+import signal
 from charset_normalizer import from_bytes
-from pylatexenc.macrospec import MacroSpec, ParsedMacroArgs
+from pylatexenc.macrospec import ParsedMacroArgs
 
 # Custom handler for the \href macro to prevent crashes
 def href_simplify_repl(node: ParsedMacroArgs, l2tobj: pylatexenc.latex2text.LatexNodes2Text):
@@ -125,6 +126,17 @@ def parse_citations(latex):
     return re.sub(bibitem_pattern, lambda match: f"[{bibitems.get(match.group(2), match.group(2))}]", latex)
 
 
+# Define a handler for the timeout
+class TimeoutException(Exception):
+    pass
+
+def timeout_handler(signum, frame):
+    raise TimeoutException
+
+# Register the signal handler
+signal.signal(signal.SIGALRM, timeout_handler)
+
+
 def extract_text_from_latex(latex_filename):
     base_dir = os.path.dirname(latex_filename)
     latex = read_file_content(latex_filename)
@@ -141,7 +153,19 @@ def extract_text_from_latex(latex_filename):
     latex = replace_inputs(latex, base_dir)
     latex = parse_citations(latex)
 
-    text = pylatexenc.latex2text.LatexNodes2Text(math_mode="verbatim", latex_context=l2t_db).latex_to_text(latex)
+    text = ""
+    # Set an alarm for 60 seconds
+    signal.alarm(60)
+    try:
+        text = pylatexenc.latex2text.LatexNodes2Text(math_mode="verbatim", latex_context=l2t_db).latex_to_text(latex)
+    except TimeoutException:
+        print(f"WARNING: Timeout parsing {latex_filename}")
+    except Exception:
+        # Any other parsing error
+        pass
+    finally:
+        # Disable the alarm
+        signal.alarm(0)
 
     text = "\n".join([l.strip() for l in text.splitlines()])
     text = "\n".join(
