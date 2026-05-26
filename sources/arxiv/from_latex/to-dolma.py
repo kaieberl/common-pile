@@ -212,7 +212,7 @@ def process_article(
     # The bulk downloader is smart enough to only download dirs when it needs
     # it so we can just call `.download` on all articles and know that it
     # won't keep re-downloading things.
-    # The start and end fields of the shards use the same verions of ids as
+    # The start and end fields of the shards use the same versions of ids as
     # filenames, that is, without the `/`
     bulk_downloader.download(id_to_filename(article["id"]))
     article_path = os.path.join(
